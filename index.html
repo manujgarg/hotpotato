@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser-arcade-physics.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<script>
+    let config = {
+        type: Phaser.AUTO,
+        width: "100",
+        height: "100",
+        scene: {
+            preload: preload,
+            create: create,
+            update: update
+        },
+        physics: {
+            default: 'arcade',
+            arcade: {
+                gravity: { y: 0 },
+                debug: false
+            }
+        },
+    };
+
+    let game = new Phaser.Game(config);
+    let gameOver = true;
+    let bomb;
+    let grounds;
+    let gameOverText;
+    let score;
+    let highscore;
+    let wind;
+    let windText;
+    let windChangeCount;
+    let timer;
+
+    function preload ()
+    {
+        this.load.image('sky', 'assets/sky.png');
+        this.load.image('ground', 'assets/platform.png');
+        this.load.image('bomb', 'assets/bomb.png');
+        this.load.spritesheet('dude',
+            'assets/dude.png',
+            { frameWidth: 32, frameHeight: 48 }
+        );
+    }
+
+    function create ()
+    {
+        this.add.image(0, 0, 'sky').setOrigin(0, 0).setDisplaySize(this.sys.canvas.width, this.sys.canvas.height);
+
+        //ground related code is commented for now
+        /*
+        const groundHeight = 30;
+        grounds = this.physics.add.staticGroup();
+        grounds.create(0, this.sys.canvas.height-groundHeight, 'ground').setOrigin(0, 0).setDisplaySize(this.sys.canvas.width, groundHeight);
+        grounds.refresh();
+         */
+
+        score = 0;
+        highscore = 0;
+        let scoreText = this.add.text(16, 16, 'score: 0', { fontSize: '16px', fill: '#000' });
+        let highscoreText = this.add.text(16, 50, 'Highscore: ' + highscore, { fontSize: '16px', fill: '#000' });
+
+        //wind related stuff
+        wind = 0;
+        windText = this.add.text(this.sys.canvas.width/2, 16, 'Wind: 0', { fontSize: '16px', fill: '#000' });
+        windChangeCount = 0;
+
+        bomb = this.physics.add.image(this.sys.canvas.width/2, 0, 'bomb').setOrigin(0, 0).setDisplaySize(50, 50);
+
+        bomb.setCollideWorldBounds(true);
+        bomb.body.onWorldBounds = true;
+
+        bomb.body.world.on('worldbounds', function(body) {
+            gameOver = true;
+
+            //pausing game physics
+            this.physics.pause();
+
+            timer.destroy();
+
+            //displaying gameover text
+            gameOverText = this.add.text(this.sys.canvas.width/2-150, this.sys.canvas.height/2-25, 'GAME OVER', { fontSize: '50px', fill: '#000' });
+
+            if(score>highscore) {
+                highscore = score;
+                localStorage.setItem('highscore', highscore);
+            }
+        }, this);
+
+        this.input.on('pointerdown', function (pointer) {
+            if(gameOver) {
+                //game over text
+                if(gameOverText) {
+                    gameOverText.destroy();
+                }
+                //resuming game physics
+                this.physics.resume();
+
+                //resetting the timer
+                timer = this.time.addEvent({
+                    delay: 10000,                // ms
+                    callback: changeWind,
+                    callbackScope: this,
+                    loop: true
+                });
+
+                //resetting the wind
+                wind = 0;
+                windText.setText(('Wind: ' + wind));
+                windChangeCount = 0;
+
+                //resetting the bomb
+                bomb.setPosition(this.sys.canvas.width/2, 0);
+                bomb.setGravityY(400);
+                bomb.setGravityX(wind);
+                bomb.setVelocityX(0);
+                bomb.setVelocityY(0);
+
+                //resetting the score
+                score = 0;
+                scoreText.setText(('Score: ' + score));
+                highscore = parseInt(localStorage.getItem('highscore')) || 0;
+
+                //displaying highscore
+                highscoreText.setText(('Highscore: ' + highscore));
+
+                gameOver = false;
+            }
+            else {
+                bomb.setVelocityX(bomb.body.velocity.x + 4*(bomb.body.position.x - pointer.x));
+                bomb.setVelocityY(bomb.body.velocity.y + 4*(bomb.body.position.y - pointer.y));
+                score++;
+                scoreText.setText(('Score: ' + score));
+            }
+        }, this);
+        this.physics.add.collider(bomb, grounds);
+    }
+
+    function changeWind()
+    {
+        wind = (-100 + Math.floor(Math.random() * 200))*windChangeCount;
+        bomb.setGravityX(wind);
+        windChangeCount++;
+        windText.setText(('Wind: ' + wind));
+    }
+
+    // function endGame(bomb, grounds)
+    // {
+    //     debugger;
+    //     this.physics.pause();
+    //     gameOver = true;
+    // }
+
+    function update ()
+    {
+    }
+</script>
+
+</body>
+</html>
